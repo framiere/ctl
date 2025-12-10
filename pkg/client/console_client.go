@@ -224,6 +224,12 @@ func (client *Client) setAuthMethodInRestClient() {
 	client.client = client.client.SetHeader("Authorization", client.authMethod.AuthorizationHeader())
 }
 
+// Resty exposes the underlying resty client with auth headers configured.
+func (client *Client) Resty() *resty.Client {
+	client.setAuthMethodFromEnvIfNeeded()
+	return client.client
+}
+
 func (client *Client) SetAPIKey(apiKey string) {
 	client.authMethod = BearerToken{apiKey}
 	client.setAuthMethodInRestClient()
