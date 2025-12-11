@@ -1,0 +1,72 @@
+port: 8080
+
+monitoring:
+  cortex_url: http://conduktor-monitoring:9009/
+  alert_manager_url: http://conduktor-monitoring:9010/
+  callback_url: http://conduktor-console:8080/monitoring/api/
+  notifications_callback_url: http://localhost:8080
+  clusters_refresh_interval: 60
+database:
+  host: postgresql
+  port: 5432
+  database: conduktor-console
+  username: conduktor
+  password: change_me
+  ssl_root_cert: null
+  options: {}
+license: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4MjMxMjY0MDAsImlhdCI6MTc0MzM1OTQ5MCwiaXNzIjoiaHR0cHM6Ly9jb25kdWt0b3IuaW8iLCJzdWIiOiJmbG9yZW50IiwidiI6MywicGxhbiI6ImVudGVycHJpc2UiLCJsaWNlbnNlSWQiOiJkNWY0NzhjYS1hYWYwLTQxMjUtYmM2ZS05ZGVhMjA3ZjgzNzEiLCJkZWFsIjp7ImNvbnNvbGUudXNlcnMubGltaXQiOjUwMCwiZXhjaGFuZ2UuY2x1c3RlcnMubGltaXQiOjEwMDAsImV4Y2hhbmdlLnRpZXIiOiJwbHVzIiwic2NhbGUudGllciI6InBsdXMiLCJzaGllbGQuY2x1c3RlcnMubGltaXQiOjEwMCwic2hpZWxkLnRpZXIiOiJwbHVzIiwidHJ1c3QuY2x1c3RlcnMubGltaXQiOjEwMDAsInRydXN0LnRpZXIiOiJwbHVzIn19.kNRUmEHCxC2wg3Ya_NtAEvN55AGhOonceLbcop5m9rhwuXyzKL0N9MTkpbP64sN3AvfnLZRrfh7siHUwQcPjug
+admin:
+  email: admin@conduktor.io
+  password: testP4ss!
+clusters:
+  - id: cdk-gateway
+    name: cdk-gateway
+    icon: dog
+    color: '#6A57C8'
+    bootstrapServers: gateway:9094
+    labels: {}
+    ignoreUntrustedCertificate: false
+    kafkaFlavor:
+      url: http://gateway:8888
+      user: admin
+      password: conduktor
+      virtualCluster: passthrough
+    properties: |
+      enable.push.metrics: true
+  - id: kafka-1
+    name: kafka-1
+    icon: kafka
+    color: '#6A57C8'
+    bootstrapServers: redpanda:9092
+    labels: {}
+    ignoreUntrustedCertificate: false
+    properties: |
+      enable.push.metrics: true
+platform:
+  frontend_files: config/www
+enable_product_metrics: true
+lag_exporter:
+  frequency: 30
+  clusterParallelism: 1
+  indexerTimeout: 300
+metadata_indexer:
+  frequency: 30
+  clusterParallelism: 1
+  indexerTimeout: 300
+monitoring_config:
+  frequency: 30
+  clusterParallelism: 1
+  indexerTimeout: 300
+connect_indexer:
+  frequency: 30
+  clusterParallelism: 1
+  indexerTimeout: 300
+registry_indexer:
+  frequency: 30
+  clusterParallelism: 1
+  indexerTimeout: 300
+catalog_indexer:
+  frequency: 30 
+  indexerTimeout: 1200
+plugins:
+  dir: config/plugins

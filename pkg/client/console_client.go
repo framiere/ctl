@@ -230,6 +230,11 @@ func (client *Client) Resty() *resty.Client {
 	return client.client
 }
 
+// BaseURL returns the base URL of the client (without /api suffix for direct path building)
+func (client *Client) BaseURL() string {
+	return client.baseURL
+}
+
 func (client *Client) SetAPIKey(apiKey string) {
 	client.authMethod = BearerToken{apiKey}
 	client.setAuthMethodInRestClient()

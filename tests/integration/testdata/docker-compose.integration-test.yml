@@ -38,6 +38,8 @@ services:
       - "8080:8080"
     volumes:
       - conduktor_data:/var/conduktor
+      - ./config/conduktor-console/config.yml:/etc/conduktor-console/config.yml
+      - ./config/conduktor-console/plugins:/opt/docker/config/plugins
     environment:
       - CDK_LICENSE # forward from the environment if set
       - CDK_DEBUG # forward from the environment if set
@@ -48,6 +50,8 @@ services:
       - CDK_MONITORING_ALERT-MANAGER-URL=http://conduktor-monitoring:9010/
       - CDK_MONITORING_CALLBACK-URL=http://conduktor-platform:8080/monitoring/api/
       - CDK_MONITORING_NOTIFICATIONS-CALLBACK-URL=http://localhost:8080
+      - ENV=dev
+      - CONSOLE_CONFIG_FILE=/etc/conduktor-console/config.yml
     healthcheck:
       test: ["CMD", "/opt/conduktor/scripts/healthcheck.sh"]
 

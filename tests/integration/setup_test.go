@@ -93,7 +93,7 @@ func teardownDocker() {
 
 func setComposeEnv() {
 	debugLogger.Println("Setting up environment variables for Docker Compose")
-	logAndSetEnv("CONDUKTOR_CONSOLE_IMAGE", fmt.Sprintf("conduktor/conduktor-console:%s", consoleVersion))
+	logAndSetEnv("CONDUKTOR_CONSOLE_IMAGE", fmt.Sprintf("harbor.cdkt.dev/conduktor/console-plus:0.0.1-SNAPSHOT"))
 	logAndSetEnv("CONDUKTOR_CONSOLE_CORTEX_IMAGE", fmt.Sprintf("conduktor/conduktor-console-cortex:%s", consoleVersion))
 	logAndSetEnv("CONDUKTOR_GATEWAY_IMAGE", fmt.Sprintf("conduktor/conduktor-gateway:%s", gatewayVersion))
 	logAndSetEnv("CDK_BASE_URL", consoleURL)

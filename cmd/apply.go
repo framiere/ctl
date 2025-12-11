@@ -11,9 +11,6 @@ import (
 var dryRun *bool
 var printDiff *bool
 var maxParallel *int
-var strategyFlag *string
-var noProgress *bool
-var assumeYes *bool
 
 func initApply(rootContext cli.RootContext) {
 	// applyCmd represents the apply command
@@ -45,24 +42,11 @@ func initApply(rootContext cli.RootContext) {
 	maxParallel = applyCmd.
 		PersistentFlags().Int("parallelism", 1, "Run each apply in parallel, useful when applying a large number of resources. Must be less than 100.")
 
-	strategyFlag = applyCmd.
-		PersistentFlags().String("strategy", "fail-fast", "Apply strategy: fail-fast or continue-on-error")
-
-	noProgress = applyCmd.
-		PersistentFlags().Bool("no-progress", false, "Do not display live progress (useful for CI logs)")
-
-	assumeYes = applyCmd.
-		PersistentFlags().Bool("yes", false, "Skip confirmation when applying a large number of resources")
-
 	_ = applyCmd.MarkPersistentFlagRequired("file")
 
 	applyCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		if *maxParallel > 100 || *maxParallel < 1 {
 			fmt.Fprintf(os.Stderr, "Error: --parallelism must be between 1 and 100 (got %d)\n", *maxParallel)
-			os.Exit(1)
-		}
-		if *strategyFlag != "fail-fast" && *strategyFlag != "continue-on-error" {
-			fmt.Fprintf(os.Stderr, "Error: --strategy must be one of [fail-fast, continue-on-error]\n")
 			os.Exit(1)
 		}
 	}
@@ -78,9 +62,6 @@ func runApply(rootContext cli.RootContext, filePath []string, recursiveFolder bo
 		PrintDiff:       *printDiff,
 		RecursiveFolder: recursiveFolder,
 		MaxParallel:     *maxParallel,
-		Strategy:        *strategyFlag,
-		NoProgress:      *noProgress,
-		AssumeYes:       *assumeYes,
 	}
 
 	results, err := applyHandler.Handle(cmdCtx)
@@ -89,23 +70,18 @@ func runApply(rootContext cli.RootContext, filePath []string, recursiveFolder bo
 		os.Exit(1)
 	}
 
-	successes := 0
-	failures := 0
+	allSuccess := true
 	for _, result := range results {
 		if result.Err != nil {
 			fmt.Fprintf(os.Stderr, "Could not apply resource %s/%s: %s\n", result.Resource.Kind, result.Resource.Name, result.Err)
-			failures++
+			allSuccess = false
 		} else if result.UpsertResult.UpsertResult != "" {
 			fmt.Printf("%s", result.UpsertResult.Diff)
 			fmt.Printf("%s/%s: %s\n", result.Resource.Kind, result.Resource.Name, result.UpsertResult.UpsertResult)
-			successes++
 		}
 	}
 
-	if failures > 0 {
-		if successes > 0 {
-			os.Exit(2) // partial success
-		}
+	if !allSuccess {
 		os.Exit(1)
 	}
 }
