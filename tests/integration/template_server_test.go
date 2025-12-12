@@ -10,10 +10,16 @@ import (
 
 // Note: These tests require the Conduktor Console server to support the
 // template-server API endpoints (/public/v1/resources/template).
+// These tests use admin token authentication.
 
 func Test_TemplateServer_ListKinds(t *testing.T) {
 	fmt.Println("Test CLI template-server list kinds")
-	stdout, stderr, err := runConsoleCommand("template-server")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-list-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template-server")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -23,7 +29,12 @@ func Test_TemplateServer_ListKinds(t *testing.T) {
 
 func Test_TemplateServer_GetTopicTemplate(t *testing.T) {
 	fmt.Println("Test CLI template-server get Topic template")
-	stdout, stderr, err := runConsoleCommand("template-server", "Topic")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-topic-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template-server", "Topic")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -35,7 +46,12 @@ func Test_TemplateServer_GetTopicTemplate(t *testing.T) {
 
 func Test_TemplateServer_GetGroupTemplate(t *testing.T) {
 	fmt.Println("Test CLI template-server get Group template")
-	stdout, stderr, err := runConsoleCommand("template-server", "Group")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-group-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template-server", "Group")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -45,7 +61,12 @@ func Test_TemplateServer_GetGroupTemplate(t *testing.T) {
 
 func Test_TemplateServer_GetUserTemplate(t *testing.T) {
 	fmt.Println("Test CLI template-server get User template")
-	stdout, stderr, err := runConsoleCommand("template-server", "User")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-user-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template-server", "User")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -55,7 +76,12 @@ func Test_TemplateServer_GetUserTemplate(t *testing.T) {
 
 func Test_TemplateServer_UnknownKind(t *testing.T) {
 	fmt.Println("Test CLI template-server with unknown kind")
-	_, stderr, err := runConsoleCommand("template-server", "UnknownKindThatDoesNotExist")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-unknown-token")
+	defer deleteTokenByName(tokenName)
+
+	_, stderr, err := runCommandWithToken(token, "template-server", "UnknownKindThatDoesNotExist")
 
 	// Should fail for unknown kind
 	assert.Error(t, err, "Expected command to fail for unknown kind")
@@ -64,6 +90,7 @@ func Test_TemplateServer_UnknownKind(t *testing.T) {
 
 func Test_TemplateServer_Help(t *testing.T) {
 	fmt.Println("Test CLI template-server help")
+	// Help command doesn't require authentication
 	stdout, stderr, err := runConsoleCommand("template-server", "--help")
 
 	// Help should always work regardless of server support
@@ -79,7 +106,12 @@ func Test_TemplateServer_Help(t *testing.T) {
 
 func Test_TemplateServer_TemplateIsValidYAML(t *testing.T) {
 	fmt.Println("Test CLI template-server returns valid YAML")
-	stdout, stderr, err := runConsoleCommand("template-server", "Group")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-yaml-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template-server", "Group")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -98,11 +130,15 @@ func Test_TemplateServer_TemplateIsValidYAML(t *testing.T) {
 func Test_TemplateServer_CompareWithLocalTemplate(t *testing.T) {
 	fmt.Println("Test CLI template-server vs local template command")
 
-	// Get template from server
-	serverStdout, serverStderr, serverErr := runConsoleCommand("template-server", "Group")
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-server-compare-token")
+	defer deleteTokenByName(tokenName)
 
-	// Get template from local catalog
-	localStdout, localStderr, localErr := runConsoleCommand("template", "Group")
+	// Get template from server
+	serverStdout, serverStderr, serverErr := runCommandWithToken(token, "template-server", "Group")
+
+	// Get template from local catalog (also needs token for API access)
+	localStdout, localStderr, localErr := runCommandWithToken(token, "template", "Group")
 
 	// Both should succeed
 	assert.NoErrorf(t, serverErr, "Server template command failed: %v\nStderr: %s", serverErr, serverStderr)

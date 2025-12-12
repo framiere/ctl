@@ -15,6 +15,7 @@ func contains(s, substr string) bool {
 
 // Note: These tests require the Conduktor Console server to support the
 // batch-apply API endpoints (/public/v1/resources/batch-apply).
+// These tests use admin token authentication.
 
 func Test_BatchApply_Empty_File(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with empty file")
@@ -49,8 +50,13 @@ func Test_BatchApply_Invalid_Strategy(t *testing.T) {
 
 func Test_BatchApply_Valid_Resource_FailFast(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with valid resource using fail-fast strategy")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-failfast-token")
+	defer deleteTokenByName(tokenName)
+
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--strategy", "fail-fast", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--strategy", "fail-fast", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -58,13 +64,18 @@ func Test_BatchApply_Valid_Resource_FailFast(t *testing.T) {
 	assert.Containsf(t, stdout, "Group/team-a", "Expected stdout to contain 'Group/team-a', got: %s", stdout)
 
 	// Cleanup after test
-	_, _, _ = runConsoleCommand("delete", "-f", filePath)
+	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
 func Test_BatchApply_Valid_Resource_ContinueOnError(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with valid resource using continue-on-error strategy")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-continue-token")
+	defer deleteTokenByName(tokenName)
+
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--strategy", "continue-on-error", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--strategy", "continue-on-error", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -72,13 +83,18 @@ func Test_BatchApply_Valid_Resource_ContinueOnError(t *testing.T) {
 	assert.Containsf(t, stdout, "Group/team-a", "Expected stdout to contain 'Group/team-a', got: %s", stdout)
 
 	// Cleanup after test
-	_, _, _ = runConsoleCommand("delete", "-f", filePath)
+	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
 func Test_BatchApply_Dry_Run(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with dry-run")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-dryrun-token")
+	defer deleteTokenByName(tokenName)
+
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--dry-run", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--dry-run", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -88,8 +104,13 @@ func Test_BatchApply_Dry_Run(t *testing.T) {
 
 func Test_BatchApply_NoProgress_Flag(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with --no-progress flag")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-noprogress-token")
+	defer deleteTokenByName(tokenName)
+
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--no-progress", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--no-progress", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -98,13 +119,18 @@ func Test_BatchApply_NoProgress_Flag(t *testing.T) {
 	_ = stdout // Output is server-dependent
 
 	// Cleanup after test
-	_, _, _ = runConsoleCommand("delete", "-f", filePath)
+	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
 func Test_BatchApply_Folder(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with folder")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-folder-token")
+	defer deleteTokenByName(tokenName)
+
 	folderPath := testDataFilePath(t, "resources_folder")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", folderPath, "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", folderPath, "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -113,13 +139,18 @@ func Test_BatchApply_Folder(t *testing.T) {
 	assert.Containsf(t, stdout, "Group/team-c", "Expected stdout to contain 'Group/team-c', got: %s", stdout)
 
 	// Cleanup after test
-	_, _, _ = runConsoleCommand("delete", "-f", folderPath)
+	_, _, _ = runCommandWithToken(token, "delete", "-f", folderPath)
 }
 
 func Test_BatchApply_Folder_Recursive(t *testing.T) {
 	fmt.Println("Test CLI Batch Apply with folder recursively")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "batch-apply-recursive-token")
+	defer deleteTokenByName(tokenName)
+
 	folderPath := testDataFilePath(t, "resources_folder")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", folderPath, "-r", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", folderPath, "-r", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -129,7 +160,7 @@ func Test_BatchApply_Folder_Recursive(t *testing.T) {
 	assert.Containsf(t, stdout, "Group/team-d", "Expected stdout to contain 'Group/team-d', got: %s", stdout)
 
 	// Cleanup after test
-	_, _, _ = runConsoleCommand("delete", "-f", folderPath, "-r")
+	_, _, _ = runCommandWithToken(token, "delete", "-f", folderPath, "-r")
 }
 
 func Test_BatchApply_LargeCount_RequiresYes(t *testing.T) {
