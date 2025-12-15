@@ -17,20 +17,20 @@ func contains(s, substr string) bool {
 // batch-apply API endpoints (/public/v1/resources/batch-apply).
 // These tests use admin token authentication.
 
-func Test_BatchApply_Empty_File(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with empty file")
+func Test_ApplyBatch_Empty_File(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with empty file")
 	filePath := testDataFilePath(t, "empty.yaml")
-	stdout, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--yes")
+	stdout, stderr, err := runConsoleCommand("apply", "--batch", "-f", filePath, "--yes")
 
 	// Empty file should succeed with no output
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 	assert.Emptyf(t, stdout, "Expected no stdout output, got: %s", stdout)
 }
 
-func Test_BatchApply_Nonexistent_File(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with nonexistent file")
+func Test_ApplyBatch_Nonexistent_File(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with nonexistent file")
 	filePath := testDataFilePath(t, "nonexistent.yaml")
-	_, stderr, err := runConsoleCommand("batch-apply", "-f", filePath)
+	_, stderr, err := runConsoleCommand("apply", "--batch", "-f", filePath)
 	assert.Error(t, err, "Expected command to fail for nonexistent file")
 
 	expectedError := fmt.Sprintf("stat %s: no such file or directory", filePath)
@@ -38,25 +38,25 @@ func Test_BatchApply_Nonexistent_File(t *testing.T) {
 	assert.Containsf(t, stderr, expectedError, "Expected stderr to contain '%s', got: %s", expectedError, stderr)
 }
 
-func Test_BatchApply_Invalid_Strategy(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with invalid strategy")
+func Test_ApplyBatch_Invalid_Strategy(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with invalid strategy")
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	_, stderr, err := runConsoleCommand("batch-apply", "-f", filePath, "--strategy", "invalid-strategy")
+	_, stderr, err := runConsoleCommand("apply", "--batch", "-f", filePath, "--strategy", "invalid-strategy")
 	assert.Error(t, err, "Expected command to fail for invalid strategy")
 
 	expectedError := "--strategy must be one of [fail-fast, continue-on-error]"
 	assert.Containsf(t, stderr, expectedError, "Expected stderr to contain '%s', got: %s", expectedError, stderr)
 }
 
-func Test_BatchApply_Valid_Resource_FailFast(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with valid resource using fail-fast strategy")
+func Test_ApplyBatch_Valid_Resource_FailFast(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with valid resource using fail-fast strategy")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-failfast-token")
+	token, tokenName := createAdminToken(t, "apply-batch-failfast-token")
 	defer deleteTokenByName(tokenName)
 
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--strategy", "fail-fast", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--strategy", "fail-fast", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -67,15 +67,15 @@ func Test_BatchApply_Valid_Resource_FailFast(t *testing.T) {
 	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
-func Test_BatchApply_Valid_Resource_ContinueOnError(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with valid resource using continue-on-error strategy")
+func Test_ApplyBatch_Valid_Resource_ContinueOnError(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with valid resource using continue-on-error strategy")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-continue-token")
+	token, tokenName := createAdminToken(t, "apply-batch-continue-token")
 	defer deleteTokenByName(tokenName)
 
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--strategy", "continue-on-error", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--strategy", "continue-on-error", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -86,15 +86,15 @@ func Test_BatchApply_Valid_Resource_ContinueOnError(t *testing.T) {
 	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
-func Test_BatchApply_Dry_Run(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with dry-run")
+func Test_ApplyBatch_Dry_Run(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with dry-run")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-dryrun-token")
+	token, tokenName := createAdminToken(t, "apply-batch-dryrun-token")
 	defer deleteTokenByName(tokenName)
 
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--dry-run", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--dry-run", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -102,15 +102,15 @@ func Test_BatchApply_Dry_Run(t *testing.T) {
 	assert.Containsf(t, stdout, "DRY RUN", "Expected stdout to contain 'DRY RUN', got: %s", stdout)
 }
 
-func Test_BatchApply_NoProgress_Flag(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with --no-progress flag")
+func Test_ApplyBatch_NoProgress_Flag(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with --no-progress flag")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-noprogress-token")
+	token, tokenName := createAdminToken(t, "apply-batch-noprogress-token")
 	defer deleteTokenByName(tokenName)
 
 	filePath := testDataFilePath(t, "valid_group.yaml")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", filePath, "--no-progress", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--no-progress", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -122,15 +122,15 @@ func Test_BatchApply_NoProgress_Flag(t *testing.T) {
 	_, _, _ = runCommandWithToken(token, "delete", "-f", filePath)
 }
 
-func Test_BatchApply_Folder(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with folder")
+func Test_ApplyBatch_Folder(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with folder")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-folder-token")
+	token, tokenName := createAdminToken(t, "apply-batch-folder-token")
 	defer deleteTokenByName(tokenName)
 
 	folderPath := testDataFilePath(t, "resources_folder")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", folderPath, "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", folderPath, "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -142,15 +142,15 @@ func Test_BatchApply_Folder(t *testing.T) {
 	_, _, _ = runCommandWithToken(token, "delete", "-f", folderPath)
 }
 
-func Test_BatchApply_Folder_Recursive(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply with folder recursively")
+func Test_ApplyBatch_Folder_Recursive(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with folder recursively")
 
 	// Create admin token for this test
-	token, tokenName := createAdminToken(t, "batch-apply-recursive-token")
+	token, tokenName := createAdminToken(t, "apply-batch-recursive-token")
 	defer deleteTokenByName(tokenName)
 
 	folderPath := testDataFilePath(t, "resources_folder")
-	stdout, stderr, err := runCommandWithToken(token, "batch-apply", "-f", folderPath, "-r", "--yes")
+	stdout, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", folderPath, "-r", "--yes")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -163,11 +163,12 @@ func Test_BatchApply_Folder_Recursive(t *testing.T) {
 	_, _, _ = runCommandWithToken(token, "delete", "-f", folderPath, "-r")
 }
 
-func Test_BatchApply_LargeCount_RequiresYes(t *testing.T) {
-	fmt.Println("Test CLI Batch Apply refuses large batch without --yes")
+func Test_ApplyBatch_LargeCount_RequiresYes(t *testing.T) {
+	fmt.Println("Test CLI apply --batch refuses large batch without --yes")
 	// This test would need a file with >50 resources
 	// For now, we just verify the flag exists and is documented
-	stdout, stderr, err := runConsoleCommand("batch-apply", "--help")
+	stdout, stderr, err := runConsoleCommand("apply", "--help")
 	assert.NoError(t, err)
 	assert.Contains(t, stdout+stderr, "--yes", "Expected help to document --yes flag")
+	assert.Contains(t, stdout+stderr, "--batch", "Expected help to document --batch flag")
 }

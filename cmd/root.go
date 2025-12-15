@@ -99,11 +99,9 @@ func init() {
 
 	initGet(rootContext)
 	initTemplate(rootContext)
-	initTemplateServer(rootContext)
 	initEdit(rootContext)
 	initDelete(rootContext)
 	initApply(rootContext)
-	initBatchApply(rootContext)
 	intConsoleMakeCatalog()
 	initGatewayMakeCatalog()
 	initPrintCatalog(catalog)
