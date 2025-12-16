@@ -172,3 +172,33 @@ func Test_ApplyBatch_LargeCount_RequiresYes(t *testing.T) {
 	assert.Contains(t, stdout+stderr, "--yes", "Expected help to document --yes flag")
 	assert.Contains(t, stdout+stderr, "--batch", "Expected help to document --batch flag")
 }
+
+func Test_ApplyBatch_InvalidResource_UnknownKind(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with invalid resource (unknown kind)")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "apply-batch-invalidkind-token")
+	defer deleteTokenByName(tokenName)
+
+	filePath := testDataFilePath(t, "invalid_resource.yaml")
+	_, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--yes")
+
+	// Should fail because "InvalidResource" is not a valid kind
+	assert.Error(t, err, "Expected command to fail for unknown kind")
+	assert.NotEmptyf(t, stderr, "Expected stderr to contain error message, got empty stderr")
+}
+
+func Test_ApplyBatch_InvalidTopic_UnknownCluster(t *testing.T) {
+	fmt.Println("Test CLI apply --batch with invalid topic (unknown cluster)")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "apply-batch-invalidcluster-token")
+	defer deleteTokenByName(tokenName)
+
+	filePath := testDataFilePath(t, "invalid_topic.yaml")
+	_, stderr, err := runCommandWithToken(token, "apply", "--batch", "-f", filePath, "--yes")
+
+	// Should fail because "unkown-cluster" does not exist
+	assert.Error(t, err, "Expected command to fail for unknown cluster")
+	assert.NotEmptyf(t, stderr, "Expected stderr to contain error message, got empty stderr")
+}

@@ -21,11 +21,12 @@ With --from-server flag, fetches templates directly from the Conduktor Console s
 This ensures templates are always up-to-date with the server's schema.
 
 Examples:
-  conduktor template                        # List available kinds (embedded)
-  conduktor template Topic                  # Get embedded template for Topic
-  conduktor template --from-server          # List kinds from server
-  conduktor template Topic --from-server    # Get template from server
-  conduktor template Topic -o topic.yaml    # Save to file
+  conduktor template                                    # List available kinds (embedded)
+  conduktor template Topic                              # Get embedded template for Topic
+  conduktor template --from-server                      # List kinds from server
+  conduktor template Topic --from-server                # Get template from server
+  conduktor template Topic --from-server --cluster gw1  # Get template for specific cluster
+  conduktor template Topic -o topic.yaml                # Save to file
 `,
 	Args: cobra.MaximumNArgs(1),
 }
@@ -36,11 +37,13 @@ func initTemplate(rootContext cli.RootContext) {
 	var edit *bool
 	var apply *bool
 	var fromServer *bool
+	var cluster *string
 
 	file = templateCmd.PersistentFlags().StringP("output", "o", "", "Write example to file")
 	edit = templateCmd.PersistentFlags().BoolP("edit", "e", false, "Edit the YAML file post-creation; this works only with --output. It will use the EDITOR environment variable or nano if not set.")
 	apply = templateCmd.PersistentFlags().BoolP("apply", "a", false, "Apply the YAML file post-editing; this works only with --edit.")
 	fromServer = templateCmd.PersistentFlags().Bool("from-server", false, "Fetch template from server instead of using embedded defaults")
+	cluster = templateCmd.PersistentFlags().String("cluster", "", "Specify cluster for template (only used with --from-server)")
 
 	templateCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		if edit != nil && *edit && (file == nil || *file == "") {
@@ -51,11 +54,15 @@ func initTemplate(rootContext cli.RootContext) {
 			fmt.Fprintln(os.Stderr, "Cannot use --apply without --edit")
 			os.Exit(11)
 		}
+		if cluster != nil && *cluster != "" && (fromServer == nil || !*fromServer) {
+			fmt.Fprintln(os.Stderr, "Cannot use --cluster without --from-server")
+			os.Exit(12)
+		}
 	}
 
 	templateCmd.Run = func(cmd *cobra.Command, args []string) {
 		if *fromServer {
-			runTemplateFromServer(rootContext, args, file, edit, apply)
+			runTemplateFromServer(rootContext, args, file, edit, apply, cluster)
 		} else {
 			runTemplateEmbedded(rootContext, args, file, edit, apply)
 		}
@@ -80,10 +87,14 @@ func initTemplate(rootContext cli.RootContext) {
 					fmt.Fprintln(os.Stderr, "Cannot use --apply without --edit")
 					os.Exit(11)
 				}
+				if cluster != nil && *cluster != "" && (fromServer == nil || !*fromServer) {
+					fmt.Fprintln(os.Stderr, "Cannot use --cluster without --from-server")
+					os.Exit(12)
+				}
 			},
 			Run: func(cmd *cobra.Command, args []string) {
 				if *fromServer {
-					runTemplateFromServer(rootContext, []string{kindName}, file, edit, apply)
+					runTemplateFromServer(rootContext, []string{kindName}, file, edit, apply, cluster)
 				} else {
 					example := kindRef.GetLatestKindVersion().GetApplyExample()
 					if example == "" {
@@ -125,7 +136,7 @@ func runTemplateEmbedded(rootContext cli.RootContext, args []string, file *strin
 	writeTemplate(rootContext, kindName, example, file, edit, apply)
 }
 
-func runTemplateFromServer(rootContext cli.RootContext, args []string, file *string, edit *bool, apply *bool) {
+func runTemplateFromServer(rootContext cli.RootContext, args []string, file *string, edit *bool, apply *bool, cluster *string) {
 	apiClient := rootContext.ConsoleAPIClient()
 	httpClient := apiClient.Resty()
 	baseURL := apiClient.BaseURL()
@@ -136,10 +147,13 @@ func runTemplateFromServer(rootContext cli.RootContext, args []string, file *str
 	// If no kind specified, list all available kinds
 	if len(args) == 0 {
 		var kinds []string
-		resp, err := httpClient.R().
+		req := httpClient.R().
 			SetHeader(cli.ApiVersionHeader, cli.ApiVersion).
-			SetResult(&kinds).
-			Get(templateURL)
+			SetResult(&kinds)
+		if cluster != nil && *cluster != "" {
+			req = req.SetQueryParam("cluster", *cluster)
+		}
+		resp, err := req.Get(templateURL)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching kinds: %s\n", err)
 			os.Exit(1)
@@ -162,9 +176,12 @@ func runTemplateFromServer(rootContext cli.RootContext, args []string, file *str
 
 	// Fetch template for specific kind
 	kind := args[0]
-	resp, err := httpClient.R().
-		SetHeader(cli.ApiVersionHeader, cli.ApiVersion).
-		Get(templateURL + "/" + kind)
+	req := httpClient.R().
+		SetHeader(cli.ApiVersionHeader, cli.ApiVersion)
+	if cluster != nil && *cluster != "" {
+		req = req.SetQueryParam("cluster", *cluster)
+	}
+	resp, err := req.Get(templateURL + "/" + kind)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching template: %s\n", err)
 		os.Exit(1)

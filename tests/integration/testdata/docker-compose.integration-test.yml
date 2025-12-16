@@ -52,7 +52,6 @@ services:
       - CDK_MONITORING_NOTIFICATIONS-CALLBACK-URL=http://localhost:8080
       - ENV=dev
       - CONSOLE_CONFIG_FILE=/etc/conduktor-console/config.yml
-      - CONDUKTOR_CONSOLE_URL=http://host.docker.internal:8888
     healthcheck:
       test: ["CMD", "/opt/conduktor/scripts/healthcheck.sh"]
 

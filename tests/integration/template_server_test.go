@@ -27,6 +27,56 @@ func Test_TemplateFromServer_ListKinds(t *testing.T) {
 	assert.Containsf(t, stdout, "Available Kinds", "Expected stdout to contain 'Available Kinds', got: %s", stdout)
 }
 
+func Test_TemplateFromServer_ListKinds_NoCluster_ShouldNotContainGatewayKinds(t *testing.T) {
+	fmt.Println("Test CLI template --from-server list kinds without cluster should NOT contain gateway kinds")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-fromserver-nocluster-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template", "--from-server")
+
+	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
+
+	// Should list available kinds
+	assert.Containsf(t, stdout, "Available Kinds", "Expected stdout to contain 'Available Kinds', got: %s", stdout)
+
+	// Without cluster parameter, gateway kinds should NOT be listed
+	assert.NotContainsf(t, stdout, "VirtualCluster", "Without --cluster, stdout should NOT contain 'VirtualCluster', got: %s", stdout)
+	assert.NotContainsf(t, stdout, "Interceptor", "Without --cluster, stdout should NOT contain 'Interceptor', got: %s", stdout)
+	assert.NotContainsf(t, stdout, "GatewayServiceAccount", "Without --cluster, stdout should NOT contain 'GatewayServiceAccount', got: %s", stdout)
+	assert.NotContainsf(t, stdout, "GatewayGroup", "Without --cluster, stdout should NOT contain 'GatewayGroup', got: %s", stdout)
+	assert.NotContainsf(t, stdout, "AliasTopic", "Without --cluster, stdout should NOT contain 'AliasTopic', got: %s", stdout)
+	assert.NotContainsf(t, stdout, "ConcentrationRule", "Without --cluster, stdout should NOT contain 'ConcentrationRule', got: %s", stdout)
+
+	// Console kinds should still be present
+	assert.Containsf(t, stdout, "Topic", "Without --cluster, stdout should contain 'Topic', got: %s", stdout)
+	assert.Containsf(t, stdout, "Group", "Without --cluster, stdout should contain 'Group', got: %s", stdout)
+}
+
+func Test_TemplateFromServer_ListKinds_WithCluster_ShouldContainGatewayKinds(t *testing.T) {
+	fmt.Println("Test CLI template --from-server list kinds with --cluster=cdk-gateway should contain gateway kinds")
+
+	// Create admin token for this test
+	token, tokenName := createAdminToken(t, "template-fromserver-withcluster-token")
+	defer deleteTokenByName(tokenName)
+
+	stdout, stderr, err := runCommandWithToken(token, "template", "--from-server", "--cluster", "cdk-gateway")
+
+	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
+
+	// Should list available kinds
+	assert.Containsf(t, stdout, "Available Kinds", "Expected stdout to contain 'Available Kinds', got: %s", stdout)
+
+	// With cluster=cdk-gateway, gateway kinds SHOULD be listed
+	assert.Containsf(t, stdout, "VirtualCluster", "With --cluster=cdk-gateway, stdout should contain 'VirtualCluster', got: %s", stdout)
+	assert.Containsf(t, stdout, "Interceptor", "With --cluster=cdk-gateway, stdout should contain 'Interceptor', got: %s", stdout)
+	assert.Containsf(t, stdout, "GatewayServiceAccount", "With --cluster=cdk-gateway, stdout should contain 'GatewayServiceAccount', got: %s", stdout)
+	assert.Containsf(t, stdout, "GatewayGroup", "With --cluster=cdk-gateway, stdout should contain 'GatewayGroup', got: %s", stdout)
+	assert.Containsf(t, stdout, "AliasTopic", "With --cluster=cdk-gateway, stdout should contain 'AliasTopic', got: %s", stdout)
+	assert.Containsf(t, stdout, "ConcentrationRule", "With --cluster=cdk-gateway, stdout should contain 'ConcentrationRule', got: %s", stdout)
+}
+
 func Test_TemplateFromServer_GetTopicTemplate(t *testing.T) {
 	fmt.Println("Test CLI template --from-server get Topic template")
 
@@ -100,9 +150,20 @@ func Test_TemplateFromServer_Help(t *testing.T) {
 	combinedOutput := stdout + stderr
 	assert.Containsf(t, combinedOutput, "template", "Expected output to contain 'template', got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--from-server", "Expected output to contain '--from-server' flag, got: %s", combinedOutput)
+	assert.Containsf(t, combinedOutput, "--cluster", "Expected output to contain '--cluster' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--output", "Expected output to contain '--output' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--edit", "Expected output to contain '--edit' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--apply", "Expected output to contain '--apply' flag, got: %s", combinedOutput)
+}
+
+func Test_TemplateFromServer_ClusterWithoutFromServer_ShouldFail(t *testing.T) {
+	fmt.Println("Test CLI template --cluster without --from-server should fail")
+
+	_, stderr, err := runConsoleCommand("template", "Topic", "--cluster", "cdk-gateway")
+
+	// Should fail when using --cluster without --from-server
+	assert.Error(t, err, "Expected command to fail when using --cluster without --from-server")
+	assert.Containsf(t, stderr, "Cannot use --cluster without --from-server", "Expected stderr to contain error message, got: %s", stderr)
 }
 
 func Test_TemplateFromServer_TemplateIsValidYAML(t *testing.T) {
