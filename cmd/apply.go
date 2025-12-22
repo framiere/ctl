@@ -23,23 +23,7 @@ func initApply(rootContext cli.RootContext) {
 	var applyCmd = &cobra.Command{
 		Use:   "apply",
 		Short: "Upsert a resource on Conduktor",
-		Long: `Upsert a resource on Conduktor.
-
-By default, resources are applied client-side with ordering handled locally.
-
-With --server-side flag, resources are sent to the server in a single request,
-allowing the server to handle ordering, parallelism, and retries.
-This is more efficient for large numbers of resources.
-
-Strategies (only used with --server-side):
-  fail-fast:         Stop on first error (default)
-  continue-on-error: Continue processing remaining resources after errors
-
-Exit codes:
-  0: All resources applied successfully
-  1: All resources failed (or error occurred)
-  2: Partial success (some succeeded, some failed) - only with --server-side
-`,
+		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			if *serverSide {
 				runServerApply(rootContext, *filePath, *recursiveFolder)
