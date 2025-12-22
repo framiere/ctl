@@ -46,9 +46,8 @@ func initTemplate(rootContext cli.RootContext) {
 	cluster = templateCmd.PersistentFlags().String("cluster", "", "Specify cluster for template (only used with --live)")
 
 	templateCmd.Run = func(cmd *cobra.Command, args []string) {
-		// --live without kind: list available kinds from server
 		if *live {
-			runTemplateLive(rootContext, nil, file, edit, apply, cluster)
+			runTemplateLive(rootContext, args, file, edit, apply, cluster)
 		} else {
 			// Original behavior: show help
 			_ = cmd.Help()
