@@ -13,13 +13,13 @@ import (
 // These tests use admin token authentication.
 
 func Test_TemplateFromServer_ListKinds(t *testing.T) {
-	fmt.Println("Test CLI template --from-server list kinds")
+	fmt.Println("Test CLI template --live list kinds")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-list-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -28,13 +28,13 @@ func Test_TemplateFromServer_ListKinds(t *testing.T) {
 }
 
 func Test_TemplateFromServer_ListKinds_NoCluster_ShouldNotContainGatewayKinds(t *testing.T) {
-	fmt.Println("Test CLI template --from-server list kinds without cluster should NOT contain gateway kinds")
+	fmt.Println("Test CLI template --live list kinds without cluster should NOT contain gateway kinds")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-nocluster-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -55,13 +55,13 @@ func Test_TemplateFromServer_ListKinds_NoCluster_ShouldNotContainGatewayKinds(t 
 }
 
 func Test_TemplateFromServer_ListKinds_WithCluster_ShouldContainGatewayKinds(t *testing.T) {
-	fmt.Println("Test CLI template --from-server list kinds with --cluster=cdk-gateway should contain gateway kinds")
+	fmt.Println("Test CLI template --live list kinds with --cluster=cdk-gateway should contain gateway kinds")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-withcluster-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "--from-server", "--cluster", "cdk-gateway")
+	stdout, stderr, err := runCommandWithToken(token, "template", "--live", "--cluster", "cdk-gateway")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -78,13 +78,13 @@ func Test_TemplateFromServer_ListKinds_WithCluster_ShouldContainGatewayKinds(t *
 }
 
 func Test_TemplateFromServer_GetTopicTemplate(t *testing.T) {
-	fmt.Println("Test CLI template --from-server get Topic template")
+	fmt.Println("Test CLI template --live get Topic template")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-topic-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "Topic", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "Topic", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -95,13 +95,13 @@ func Test_TemplateFromServer_GetTopicTemplate(t *testing.T) {
 }
 
 func Test_TemplateFromServer_GetGroupTemplate(t *testing.T) {
-	fmt.Println("Test CLI template --from-server get Group template")
+	fmt.Println("Test CLI template --live get Group template")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-group-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "Group", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "Group", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -110,13 +110,13 @@ func Test_TemplateFromServer_GetGroupTemplate(t *testing.T) {
 }
 
 func Test_TemplateFromServer_GetUserTemplate(t *testing.T) {
-	fmt.Println("Test CLI template --from-server get User template")
+	fmt.Println("Test CLI template --live get User template")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-user-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "User", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "User", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -125,13 +125,13 @@ func Test_TemplateFromServer_GetUserTemplate(t *testing.T) {
 }
 
 func Test_TemplateFromServer_UnknownKind(t *testing.T) {
-	fmt.Println("Test CLI template --from-server with unknown kind")
+	fmt.Println("Test CLI template --live with unknown kind")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-unknown-token")
 	defer deleteTokenByName(tokenName)
 
-	_, stderr, err := runCommandWithToken(token, "template", "UnknownKindThatDoesNotExist", "--from-server")
+	_, stderr, err := runCommandWithToken(token, "template", "UnknownKindThatDoesNotExist", "--live")
 
 	// Should fail for unknown kind
 	assert.Error(t, err, "Expected command to fail for unknown kind")
@@ -139,7 +139,7 @@ func Test_TemplateFromServer_UnknownKind(t *testing.T) {
 }
 
 func Test_TemplateFromServer_Help(t *testing.T) {
-	fmt.Println("Test CLI template --from-server help")
+	fmt.Println("Test CLI template --live help")
 	// Help command doesn't require authentication
 	stdout, stderr, err := runConsoleCommand("template", "--help")
 
@@ -149,7 +149,7 @@ func Test_TemplateFromServer_Help(t *testing.T) {
 	// Should show usage information
 	combinedOutput := stdout + stderr
 	assert.Containsf(t, combinedOutput, "template", "Expected output to contain 'template', got: %s", combinedOutput)
-	assert.Containsf(t, combinedOutput, "--from-server", "Expected output to contain '--from-server' flag, got: %s", combinedOutput)
+	assert.Containsf(t, combinedOutput, "--live", "Expected output to contain '--live' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--cluster", "Expected output to contain '--cluster' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--output", "Expected output to contain '--output' flag, got: %s", combinedOutput)
 	assert.Containsf(t, combinedOutput, "--edit", "Expected output to contain '--edit' flag, got: %s", combinedOutput)
@@ -157,23 +157,23 @@ func Test_TemplateFromServer_Help(t *testing.T) {
 }
 
 func Test_TemplateFromServer_ClusterWithoutFromServer_ShouldFail(t *testing.T) {
-	fmt.Println("Test CLI template --cluster without --from-server should fail")
+	fmt.Println("Test CLI template --cluster without --live should fail")
 
 	_, stderr, err := runConsoleCommand("template", "Topic", "--cluster", "cdk-gateway")
 
-	// Should fail when using --cluster without --from-server
-	assert.Error(t, err, "Expected command to fail when using --cluster without --from-server")
-	assert.Containsf(t, stderr, "Cannot use --cluster without --from-server", "Expected stderr to contain error message, got: %s", stderr)
+	// Should fail when using --cluster without --live
+	assert.Error(t, err, "Expected command to fail when using --cluster without --live")
+	assert.Containsf(t, stderr, "Cannot use --cluster without --live", "Expected stderr to contain error message, got: %s", stderr)
 }
 
 func Test_TemplateFromServer_TemplateIsValidYAML(t *testing.T) {
-	fmt.Println("Test CLI template --from-server returns valid YAML")
+	fmt.Println("Test CLI template --live returns valid YAML")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-yaml-token")
 	defer deleteTokenByName(tokenName)
 
-	stdout, stderr, err := runCommandWithToken(token, "template", "Group", "--from-server")
+	stdout, stderr, err := runCommandWithToken(token, "template", "Group", "--live")
 
 	assert.NoErrorf(t, err, "Command failed: %v\nStderr: %s", err, stderr)
 
@@ -190,14 +190,14 @@ func Test_TemplateFromServer_TemplateIsValidYAML(t *testing.T) {
 }
 
 func Test_TemplateFromServer_CompareWithLocalTemplate(t *testing.T) {
-	fmt.Println("Test CLI template --from-server vs local template command")
+	fmt.Println("Test CLI template --live vs local template command")
 
 	// Create admin token for this test
 	token, tokenName := createAdminToken(t, "template-fromserver-compare-token")
 	defer deleteTokenByName(tokenName)
 
 	// Get template from server
-	serverStdout, serverStderr, serverErr := runCommandWithToken(token, "template", "Group", "--from-server")
+	serverStdout, serverStderr, serverErr := runCommandWithToken(token, "template", "Group", "--live")
 
 	// Get template from local catalog (also needs token for API access)
 	localStdout, localStderr, localErr := runCommandWithToken(token, "template", "Group")

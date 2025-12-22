@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// === Tests for the new server-based batch apply flow ===
+// === Tests for the new server apply flow ===
 
-func TestBatchApplyRequest_Serialization(t *testing.T) {
-	req := BatchApplyRequest{
+func TestServerApplyRequest_Serialization(t *testing.T) {
+	req := ServerApplyRequest{
 		Resources: []ResourceDefinition{
 			{OriginalPath: "test.yaml", Content: "kind: Topic\nmetadata:\n  name: test"},
 		},
@@ -30,7 +30,7 @@ func TestBatchApplyRequest_Serialization(t *testing.T) {
 	data, err := json.Marshal(req)
 	require.NoError(t, err)
 
-	var parsed BatchApplyRequest
+	var parsed ServerApplyRequest
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
@@ -41,7 +41,7 @@ func TestBatchApplyRequest_Serialization(t *testing.T) {
 	assert.Equal(t, req.Strategy, parsed.Strategy)
 }
 
-func TestBatchApplyStatusResponse_Deserialization(t *testing.T) {
+func TestServerApplyStatusResponse_Deserialization(t *testing.T) {
 	// Contract test - this JSON must match Scala server output
 	jsonStr := `{
 		"token": "abc-123",
@@ -57,7 +57,7 @@ func TestBatchApplyStatusResponse_Deserialization(t *testing.T) {
 		"failureCount": 0
 	}`
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
@@ -76,7 +76,7 @@ func TestBatchApplyStatusResponse_Deserialization(t *testing.T) {
 	assert.Equal(t, 0, status.FailureCount)
 }
 
-func TestBatchApplyStatusResponse_WithError(t *testing.T) {
+func TestServerApplyStatusResponse_WithError(t *testing.T) {
 	errorMsg := "HTTP 500: Internal Server Error"
 	jsonStr := fmt.Sprintf(`{
 		"token": "abc-123",
@@ -92,7 +92,7 @@ func TestBatchApplyStatusResponse_WithError(t *testing.T) {
 		"failureCount": 1
 	}`, errorMsg)
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
@@ -102,7 +102,7 @@ func TestBatchApplyStatusResponse_WithError(t *testing.T) {
 	assert.Equal(t, 1, status.FailureCount)
 }
 
-func TestBatchApplyStatusResponse_PartialSuccess(t *testing.T) {
+func TestServerApplyStatusResponse_PartialSuccess(t *testing.T) {
 	jsonStr := `{
 		"token": "abc-123",
 		"status": "Completed",
@@ -118,7 +118,7 @@ func TestBatchApplyStatusResponse_PartialSuccess(t *testing.T) {
 		"failureCount": 1
 	}`
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestValidateStrategy(t *testing.T) {
 	}
 }
 
-func TestNewBatchApplyHandler(t *testing.T) {
+func TestNewServerApplyHandler(t *testing.T) {
 	debug := false
 	rootCtx := RootContext{
 		Catalog: schema.Catalog{
@@ -168,13 +168,13 @@ func TestNewBatchApplyHandler(t *testing.T) {
 		Debug:  &debug,
 	}
 
-	handler := NewBatchApplyHandler(rootCtx)
+	handler := NewServerApplyHandler(rootCtx)
 
 	assert.NotNil(t, handler)
 	assert.Equal(t, rootCtx, handler.rootCtx)
 }
 
-func TestBatchApplyResultServer_WithRetryCount(t *testing.T) {
+func TestServerApplyResultServer_WithRetryCount(t *testing.T) {
 	jsonStr := `{
 		"resourceName": "my-topic",
 		"resourceKind": "Topic",
@@ -185,7 +185,7 @@ func TestBatchApplyResultServer_WithRetryCount(t *testing.T) {
 		"retryCount": 2
 	}`
 
-	var result BatchApplyResultServer
+	var result ServerApplyResultServer
 	err := json.Unmarshal([]byte(jsonStr), &result)
 	require.NoError(t, err)
 
@@ -193,7 +193,7 @@ func TestBatchApplyResultServer_WithRetryCount(t *testing.T) {
 	assert.False(t, result.DiffTruncated)
 }
 
-func TestBatchApplyResultServer_WithTruncatedDiff(t *testing.T) {
+func TestServerApplyResultServer_WithTruncatedDiff(t *testing.T) {
 	diff := "some diff content"
 	jsonStr := fmt.Sprintf(`{
 		"resourceName": "my-topic",
@@ -205,7 +205,7 @@ func TestBatchApplyResultServer_WithTruncatedDiff(t *testing.T) {
 		"retryCount": 0
 	}`, diff)
 
-	var result BatchApplyResultServer
+	var result ServerApplyResultServer
 	err := json.Unmarshal([]byte(jsonStr), &result)
 	require.NoError(t, err)
 
@@ -250,14 +250,14 @@ func TestIndentString(t *testing.T) {
 }
 
 // Mock server for integration-style tests
-func TestBatchApplyHandler_MockServer(t *testing.T) {
+func TestServerApplyHandler_MockServer(t *testing.T) {
 	pollCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if r.URL.Path == "/public/v1/resources/batch-apply" && r.Method == "POST" {
 			// Initial request - return token
-			json.NewEncoder(w).Encode(BatchApplyResponse{Token: "test-token-123"})
+			json.NewEncoder(w).Encode(ServerApplyResponse{Token: "test-token-123"})
 			return
 		}
 
@@ -265,7 +265,7 @@ func TestBatchApplyHandler_MockServer(t *testing.T) {
 			pollCount++
 			// Return completed status
 			outcome := "Success"
-			json.NewEncoder(w).Encode(BatchApplyStatusResponse{
+			json.NewEncoder(w).Encode(ServerApplyStatusResponse{
 				Token:              "test-token-123",
 				Status:             "Completed",
 				Outcome:            &outcome,
@@ -273,7 +273,7 @@ func TestBatchApplyHandler_MockServer(t *testing.T) {
 				ProcessedResources: 1,
 				SuccessCount:       1,
 				FailureCount:       0,
-				Results: []BatchApplyResultServer{
+				Results: []ServerApplyResultServer{
 					{
 						ResourceName: "test-resource",
 						ResourceKind: "Topic",
@@ -292,10 +292,10 @@ func TestBatchApplyHandler_MockServer(t *testing.T) {
 	restyClient := resty.New().SetBaseURL(server.URL)
 
 	// Verify the server responds correctly
-	var resp BatchApplyResponse
+	var resp ServerApplyResponse
 	r, err := restyClient.R().
 		SetHeader(ApiVersionHeader, ApiVersion).
-		SetBody(BatchApplyRequest{
+		SetBody(ServerApplyRequest{
 			Resources: []ResourceDefinition{{Content: "test"}},
 			Strategy:  "fail-fast",
 		}).
@@ -307,7 +307,7 @@ func TestBatchApplyHandler_MockServer(t *testing.T) {
 	assert.Equal(t, "test-token-123", resp.Token)
 
 	// Verify polling works
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	r, err = restyClient.R().
 		SetHeader(ApiVersionHeader, ApiVersion).
 		SetResult(&status).
@@ -332,8 +332,8 @@ func TestPollIntervalConstants(t *testing.T) {
 
 // === Additional edge case tests ===
 
-func TestBatchApplyRequest_EmptyResources(t *testing.T) {
-	req := BatchApplyRequest{
+func TestServerApplyRequest_EmptyResources(t *testing.T) {
+	req := ServerApplyRequest{
 		Resources: []ResourceDefinition{},
 		DryRun:    false,
 		PrintDiff: false,
@@ -343,15 +343,15 @@ func TestBatchApplyRequest_EmptyResources(t *testing.T) {
 	data, err := json.Marshal(req)
 	require.NoError(t, err)
 
-	var parsed BatchApplyRequest
+	var parsed ServerApplyRequest
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
 	assert.Empty(t, parsed.Resources)
 }
 
-func TestBatchApplyRequest_MultipleResources(t *testing.T) {
-	req := BatchApplyRequest{
+func TestServerApplyRequest_MultipleResources(t *testing.T) {
+	req := ServerApplyRequest{
 		Resources: []ResourceDefinition{
 			{OriginalPath: "file1.yaml", Content: "kind: Topic\nname: topic1"},
 			{OriginalPath: "file2.yaml", Content: "kind: Topic\nname: topic2"},
@@ -365,7 +365,7 @@ func TestBatchApplyRequest_MultipleResources(t *testing.T) {
 	data, err := json.Marshal(req)
 	require.NoError(t, err)
 
-	var parsed BatchApplyRequest
+	var parsed ServerApplyRequest
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
@@ -375,7 +375,7 @@ func TestBatchApplyRequest_MultipleResources(t *testing.T) {
 	assert.Equal(t, "file3.yaml", parsed.Resources[2].OriginalPath)
 }
 
-func TestBatchApplyStatusResponse_InProgress(t *testing.T) {
+func TestServerApplyStatusResponse_InProgress(t *testing.T) {
 	jsonStr := `{
 		"token": "abc-123",
 		"status": "InProgress",
@@ -390,7 +390,7 @@ func TestBatchApplyStatusResponse_InProgress(t *testing.T) {
 		"failureCount": 0
 	}`
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
@@ -401,7 +401,7 @@ func TestBatchApplyStatusResponse_InProgress(t *testing.T) {
 	assert.Len(t, status.Results, 1)
 }
 
-func TestBatchApplyStatusResponse_Cancelled(t *testing.T) {
+func TestServerApplyStatusResponse_Cancelled(t *testing.T) {
 	jsonStr := `{
 		"token": "abc-123",
 		"status": "Cancelled",
@@ -416,7 +416,7 @@ func TestBatchApplyStatusResponse_Cancelled(t *testing.T) {
 		"failureCount": 0
 	}`
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
@@ -425,8 +425,8 @@ func TestBatchApplyStatusResponse_Cancelled(t *testing.T) {
 	assert.Equal(t, "Cancelled", *status.Outcome)
 }
 
-func TestBatchApplyStatusResponse_WithBatchError(t *testing.T) {
-	batchError := "Connection timeout"
+func TestServerApplyStatusResponse_WithServerError(t *testing.T) {
+	serverError := "Connection timeout"
 	jsonStr := fmt.Sprintf(`{
 		"token": "abc-123",
 		"status": "Completed",
@@ -437,14 +437,14 @@ func TestBatchApplyStatusResponse_WithBatchError(t *testing.T) {
 		"processedResources": 0,
 		"successCount": 0,
 		"failureCount": 0
-	}`, batchError)
+	}`, serverError)
 
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	err := json.Unmarshal([]byte(jsonStr), &status)
 	require.NoError(t, err)
 
 	assert.NotNil(t, status.Error)
-	assert.Equal(t, batchError, *status.Error)
+	assert.Equal(t, serverError, *status.Error)
 }
 
 func TestResourceDefinition_Serialization(t *testing.T) {
@@ -464,21 +464,21 @@ func TestResourceDefinition_Serialization(t *testing.T) {
 	assert.Equal(t, def.Content, parsed.Content)
 }
 
-func TestBatchApplyResponse_Serialization(t *testing.T) {
-	resp := BatchApplyResponse{Token: "unique-token-12345"}
+func TestServerApplyResponse_Serialization(t *testing.T) {
+	resp := ServerApplyResponse{Token: "unique-token-12345"}
 
 	data, err := json.Marshal(resp)
 	require.NoError(t, err)
 
-	var parsed BatchApplyResponse
+	var parsed ServerApplyResponse
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
 	assert.Equal(t, "unique-token-12345", parsed.Token)
 }
 
-func TestBatchApplyHandlerContext_DefaultValues(t *testing.T) {
-	ctx := BatchApplyHandlerContext{}
+func TestServerApplyHandlerContext_DefaultValues(t *testing.T) {
+	ctx := ServerApplyHandlerContext{}
 
 	// Verify zero values
 	assert.Empty(t, ctx.FilePaths)
@@ -490,8 +490,8 @@ func TestBatchApplyHandlerContext_DefaultValues(t *testing.T) {
 	assert.False(t, ctx.AssumeYes)
 }
 
-func TestBatchApplyHandlerContext_AllFieldsSet(t *testing.T) {
-	ctx := BatchApplyHandlerContext{
+func TestServerApplyHandlerContext_AllFieldsSet(t *testing.T) {
+	ctx := ServerApplyHandlerContext{
 		FilePaths:       []string{"file1.yaml", "file2.yaml"},
 		DryRun:          true,
 		PrintDiff:       true,
@@ -510,8 +510,8 @@ func TestBatchApplyHandlerContext_AllFieldsSet(t *testing.T) {
 	assert.True(t, ctx.AssumeYes)
 }
 
-func TestBatchApplyResult_WithError(t *testing.T) {
-	result := BatchApplyResult{
+func TestServerApplyResult_WithError(t *testing.T) {
+	result := ServerApplyResult{
 		Err: fmt.Errorf("failed to apply resource"),
 	}
 
@@ -519,8 +519,8 @@ func TestBatchApplyResult_WithError(t *testing.T) {
 	assert.Contains(t, result.Err.Error(), "failed to apply resource")
 }
 
-func TestBatchApplyResult_Success(t *testing.T) {
-	result := BatchApplyResult{
+func TestServerApplyResult_Success(t *testing.T) {
+	result := ServerApplyResult{
 		UpsertResult: client.Result{
 			UpsertResult: "Created",
 			Diff:         "+ added line",
@@ -538,14 +538,14 @@ func TestErrCancelled(t *testing.T) {
 }
 
 // Test mock server with progress polling
-func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
+func TestServerApplyHandler_MockServer_WithProgress(t *testing.T) {
 	pollCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ApiVersionHeader, ApiVersion)
 
 		if r.URL.Path == "/public/v1/resources/batch-apply" && r.Method == "POST" {
-			json.NewEncoder(w).Encode(BatchApplyResponse{Token: "progress-token"})
+			json.NewEncoder(w).Encode(ServerApplyResponse{Token: "progress-token"})
 			return
 		}
 
@@ -553,21 +553,21 @@ func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
 			pollCount++
 			if pollCount < 3 {
 				// Return in-progress status
-				json.NewEncoder(w).Encode(BatchApplyStatusResponse{
+				json.NewEncoder(w).Encode(ServerApplyStatusResponse{
 					Token:              "progress-token",
 					Status:             "InProgress",
 					TotalResources:     2,
 					ProcessedResources: pollCount,
 					SuccessCount:       pollCount,
 					FailureCount:       0,
-					Results: []BatchApplyResultServer{
+					Results: []ServerApplyResultServer{
 						{ResourceName: "topic1", ResourceKind: "Topic", Status: "Created"},
 					},
 				})
 			} else {
 				// Return completed status
 				outcome := "Success"
-				json.NewEncoder(w).Encode(BatchApplyStatusResponse{
+				json.NewEncoder(w).Encode(ServerApplyStatusResponse{
 					Token:              "progress-token",
 					Status:             "Completed",
 					Outcome:            &outcome,
@@ -575,7 +575,7 @@ func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
 					ProcessedResources: 2,
 					SuccessCount:       2,
 					FailureCount:       0,
-					Results: []BatchApplyResultServer{
+					Results: []ServerApplyResultServer{
 						{ResourceName: "topic1", ResourceKind: "Topic", Status: "Created"},
 						{ResourceName: "topic2", ResourceKind: "Topic", Status: "Created"},
 					},
@@ -591,10 +591,10 @@ func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
 	restyClient := resty.New().SetBaseURL(server.URL)
 
 	// Start batch apply
-	var resp BatchApplyResponse
+	var resp ServerApplyResponse
 	r, err := restyClient.R().
 		SetHeader(ApiVersionHeader, ApiVersion).
-		SetBody(BatchApplyRequest{
+		SetBody(ServerApplyRequest{
 			Resources: []ResourceDefinition{
 				{Content: "topic1"},
 				{Content: "topic2"},
@@ -609,7 +609,7 @@ func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
 	assert.Equal(t, "progress-token", resp.Token)
 
 	// Poll until complete
-	var status BatchApplyStatusResponse
+	var status ServerApplyStatusResponse
 	for i := 0; i < 5; i++ {
 		r, err = restyClient.R().
 			SetHeader(ApiVersionHeader, ApiVersion).
@@ -628,21 +628,21 @@ func TestBatchApplyHandler_MockServer_WithProgress(t *testing.T) {
 }
 
 // Test mock server with API version mismatch warning
-func TestBatchApplyHandler_MockServer_VersionMismatch(t *testing.T) {
+func TestServerApplyHandler_MockServer_VersionMismatch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set(ApiVersionHeader, "2.0") // Different version
 
-		json.NewEncoder(w).Encode(BatchApplyResponse{Token: "version-test"})
+		json.NewEncoder(w).Encode(ServerApplyResponse{Token: "version-test"})
 	}))
 	defer server.Close()
 
 	restyClient := resty.New().SetBaseURL(server.URL)
 
-	var resp BatchApplyResponse
+	var resp ServerApplyResponse
 	r, err := restyClient.R().
 		SetHeader(ApiVersionHeader, ApiVersion).
-		SetBody(BatchApplyRequest{Resources: []ResourceDefinition{{Content: "test"}}}).
+		SetBody(ServerApplyRequest{Resources: []ResourceDefinition{{Content: "test"}}}).
 		SetResult(&resp).
 		Post("/public/v1/resources/batch-apply")
 
@@ -654,7 +654,7 @@ func TestBatchApplyHandler_MockServer_VersionMismatch(t *testing.T) {
 }
 
 // Test mock server error handling
-func TestBatchApplyHandler_MockServer_ServerError(t *testing.T) {
+func TestServerApplyHandler_MockServer_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
@@ -665,7 +665,7 @@ func TestBatchApplyHandler_MockServer_ServerError(t *testing.T) {
 
 	r, err := restyClient.R().
 		SetHeader(ApiVersionHeader, ApiVersion).
-		SetBody(BatchApplyRequest{Resources: []ResourceDefinition{{Content: "test"}}}).
+		SetBody(ServerApplyRequest{Resources: []ResourceDefinition{{Content: "test"}}}).
 		Post("/public/v1/resources/batch-apply")
 
 	require.NoError(t, err)

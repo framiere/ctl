@@ -12,8 +12,8 @@ import (
 	"github.com/conduktor/ctl/pkg/resource"
 )
 
-// BatchApplyHandlerContext contains the configuration for a batch apply operation
-type BatchApplyHandlerContext struct {
+// ServerApplyHandlerContext contains the configuration for a server apply operation
+type ServerApplyHandlerContext struct {
 	FilePaths       []string
 	DryRun          bool
 	PrintDiff       bool
@@ -23,21 +23,21 @@ type BatchApplyHandlerContext struct {
 	AssumeYes       bool   // skip safety prompt on large batches
 }
 
-// BatchApplyResult represents the result of applying a single resource
-type BatchApplyResult struct {
+// ServerApplyResult represents the result of applying a single resource
+type ServerApplyResult struct {
 	Resource     resource.Resource
 	UpsertResult client.Result
 	Err          error
 }
 
-// BatchApplyHandler handles server-side batch apply operations
-type BatchApplyHandler struct {
+// ServerApplyHandler handles server-side apply operations
+type ServerApplyHandler struct {
 	rootCtx RootContext
 }
 
-// NewBatchApplyHandler creates a new BatchApplyHandler
-func NewBatchApplyHandler(rootCtx RootContext) *BatchApplyHandler {
-	return &BatchApplyHandler{rootCtx: rootCtx}
+// NewServerApplyHandler creates a new ServerApplyHandler
+func NewServerApplyHandler(rootCtx RootContext) *ServerApplyHandler {
+	return &ServerApplyHandler{rootCtx: rootCtx}
 }
 
 // ResourceDefinition represents a resource to be applied
@@ -46,34 +46,34 @@ type ResourceDefinition struct {
 	Content      string `json:"content"`
 }
 
-// BatchApplyRequest is the request body for the batch apply endpoint
-type BatchApplyRequest struct {
+// ServerApplyRequest is the request body for the server apply endpoint
+type ServerApplyRequest struct {
 	Resources []ResourceDefinition `json:"resources"`
 	DryRun    bool                 `json:"dryRun"`
 	PrintDiff bool                 `json:"printDiff"`
 	Strategy  string               `json:"strategy"`
 }
 
-// BatchApplyResponse is the initial response from the batch apply endpoint
-type BatchApplyResponse struct {
+// ServerApplyResponse is the initial response from the server apply endpoint
+type ServerApplyResponse struct {
 	Token string `json:"token"`
 }
 
-// BatchApplyStatusResponse is the response from polling the batch apply status
-type BatchApplyStatusResponse struct {
-	Token              string                   `json:"token"`
-	Status             string                   `json:"status"`
-	Results            []BatchApplyResultServer `json:"results"`
-	Error              *string                  `json:"error"`
-	Outcome            *string                  `json:"outcome"`
-	TotalResources     int                      `json:"totalResources"`
-	ProcessedResources int                      `json:"processedResources"`
-	SuccessCount       int                      `json:"successCount"`
-	FailureCount       int                      `json:"failureCount"`
+// ServerApplyStatusResponse is the response from polling the server apply status
+type ServerApplyStatusResponse struct {
+	Token              string                    `json:"token"`
+	Status             string                    `json:"status"`
+	Results            []ServerApplyResultServer `json:"results"`
+	Error              *string                   `json:"error"`
+	Outcome            *string                   `json:"outcome"`
+	TotalResources     int                       `json:"totalResources"`
+	ProcessedResources int                       `json:"processedResources"`
+	SuccessCount       int                       `json:"successCount"`
+	FailureCount       int                       `json:"failureCount"`
 }
 
-// BatchApplyResultServer represents a single result from the server
-type BatchApplyResultServer struct {
+// ServerApplyResultServer represents a single result from the server
+type ServerApplyResultServer struct {
 	ResourceName  string  `json:"resourceName"`
 	ResourceKind  string  `json:"resourceKind"`
 	Status        string  `json:"status"`
@@ -86,15 +86,15 @@ type BatchApplyResultServer struct {
 // ErrCancelled is returned when the operation is cancelled by the user
 var ErrCancelled = fmt.Errorf("operation cancelled by user")
 
-// Handle executes the batch apply operation
-func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchApplyResult, error) {
+// Handle executes the server apply operation
+func (h *ServerApplyHandler) Handle(cmdCtx ServerApplyHandlerContext) ([]ServerApplyResult, error) {
 	resources, err := LoadResourcesFromFiles(cmdCtx.FilePaths, h.rootCtx.Strict, cmdCtx.RecursiveFolder)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(resources) == 0 {
-		return []BatchApplyResult{}, nil
+		return []ServerApplyResult{}, nil
 	}
 
 	var defs []ResourceDefinition
@@ -122,14 +122,14 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 		return nil, err
 	}
 
-	req := BatchApplyRequest{
+	req := ServerApplyRequest{
 		Resources: defs,
 		DryRun:    cmdCtx.DryRun,
 		PrintDiff: cmdCtx.PrintDiff,
 		Strategy:  strategy,
 	}
 
-	var resp BatchApplyResponse
+	var resp ServerApplyResponse
 	postCtx, cancelPost := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancelPost()
 
@@ -161,16 +161,16 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 
 	token := resp.Token
 	if cmdCtx.DryRun {
-		fmt.Printf("Batch apply (DRY RUN) started with token: %s\n", token)
+		fmt.Printf("Server apply (DRY RUN) started with token: %s\n", token)
 	} else {
-		fmt.Printf("Batch apply started with token: %s\n", token)
+		fmt.Printf("Server apply started with token: %s\n", token)
 	}
 	fmt.Printf("Strategy: %s\n", strategy)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	var finalResults []BatchApplyResult
+	var finalResults []ServerApplyResult
 	lastProcessed := 0
 	cancelled := false
 
@@ -179,7 +179,7 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 	for {
 		if ctx.Err() != nil && !cancelled {
 			cancelled = true
-			fmt.Println("\nCancelling batch apply...")
+			fmt.Println("\nCancelling server apply...")
 			cancelCtx, cancelCancel := context.WithTimeout(context.Background(), CancelTimeout)
 			_, _ = httpClient.R().
 				SetContext(cancelCtx).
@@ -188,7 +188,7 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 			cancelCancel()
 		}
 
-		var status BatchApplyStatusResponse
+		var status ServerApplyStatusResponse
 		pollCtx, cancelPoll := context.WithTimeout(ctx, DefaultTimeout)
 		r, err := httpClient.R().
 			SetContext(pollCtx).
@@ -257,7 +257,7 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 			}
 
 			for _, res := range status.Results {
-				result := BatchApplyResult{
+				result := ServerApplyResult{
 					Resource: resource.Resource{Kind: res.ResourceKind, Name: res.ResourceName},
 				}
 				if res.Error != nil {
@@ -275,7 +275,7 @@ func (h *BatchApplyHandler) Handle(cmdCtx BatchApplyHandlerContext) ([]BatchAppl
 				return finalResults, ErrCancelled
 			}
 			if status.Error != nil {
-				return finalResults, fmt.Errorf("batch failed: %s", *status.Error)
+				return finalResults, fmt.Errorf("server apply failed: %s", *status.Error)
 			}
 			break
 		}

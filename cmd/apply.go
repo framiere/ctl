@@ -11,7 +11,7 @@ import (
 var dryRun *bool
 var printDiff *bool
 var maxParallel *int
-var batchMode *bool
+var serverSide *bool
 var strategyFlag *string
 var noProgress *bool
 var assumeYes *bool
@@ -27,22 +27,22 @@ func initApply(rootContext cli.RootContext) {
 
 By default, resources are applied client-side with ordering handled locally.
 
-With --batch flag, resources are sent to the server in a single request,
+With --server-side flag, resources are sent to the server in a single request,
 allowing the server to handle ordering, parallelism, and retries.
 This is more efficient for large numbers of resources.
 
-Strategies (only used with --batch):
+Strategies (only used with --server-side):
   fail-fast:         Stop on first error (default)
   continue-on-error: Continue processing remaining resources after errors
 
 Exit codes:
   0: All resources applied successfully
   1: All resources failed (or error occurred)
-  2: Partial success (some succeeded, some failed) - only with --batch
+  2: Partial success (some succeeded, some failed) - only with --server-side
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			if *batchMode {
-				runBatchApply(rootContext, *filePath, *recursiveFolder)
+			if *serverSide {
+				runServerApply(rootContext, *filePath, *recursiveFolder)
 			} else {
 				runApply(rootContext, *filePath, *recursiveFolder)
 			}
@@ -64,28 +64,28 @@ Exit codes:
 		PersistentFlags().BoolP("recursive", "r", false, "Apply all .yaml or .yml files in the specified folder and its subfolders. If not set, only files in the specified folder will be applied.")
 
 	maxParallel = applyCmd.
-		PersistentFlags().Int("parallelism", 1, "Run each apply in parallel, useful when applying a large number of resources. Must be less than 100. Only used without --batch.")
+		PersistentFlags().Int("parallelism", 1, "Run each apply in parallel, useful when applying a large number of resources. Must be less than 100. Only used without --server-side.")
 
-	batchMode = applyCmd.
-		PersistentFlags().Bool("batch", false, "Use server-side batch processing for better performance with many resources")
+	serverSide = applyCmd.
+		PersistentFlags().Bool("server-side", false, "Use server-side processing for better performance with many resources")
 
 	strategyFlag = applyCmd.
-		PersistentFlags().String("strategy", "fail-fast", "Apply strategy: fail-fast or continue-on-error. Only used with --batch.")
+		PersistentFlags().String("strategy", "fail-fast", "Apply strategy: fail-fast or continue-on-error. Only used with --server-side.")
 
 	noProgress = applyCmd.
-		PersistentFlags().Bool("no-progress", false, "Do not display live progress (useful for CI logs). Only used with --batch.")
+		PersistentFlags().Bool("no-progress", false, "Do not display live progress (useful for CI logs). Only used with --server-side.")
 
 	assumeYes = applyCmd.
-		PersistentFlags().Bool("yes", false, "Skip confirmation when applying a large number of resources. Only used with --batch.")
+		PersistentFlags().Bool("yes", false, "Skip confirmation when applying a large number of resources. Only used with --server-side.")
 
 	_ = applyCmd.MarkPersistentFlagRequired("file")
 
 	applyCmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if !*batchMode && (*maxParallel > 100 || *maxParallel < 1) {
+		if !*serverSide && (*maxParallel > 100 || *maxParallel < 1) {
 			fmt.Fprintf(os.Stderr, "Error: --parallelism must be between 1 and 100 (got %d)\n", *maxParallel)
 			os.Exit(1)
 		}
-		if *batchMode && *strategyFlag != "fail-fast" && *strategyFlag != "continue-on-error" {
+		if *serverSide && *strategyFlag != "fail-fast" && *strategyFlag != "continue-on-error" {
 			fmt.Fprintf(os.Stderr, "Error: --strategy must be one of [fail-fast, continue-on-error]\n")
 			os.Exit(1)
 		}
@@ -126,10 +126,10 @@ func runApply(rootContext cli.RootContext, filePath []string, recursiveFolder bo
 	}
 }
 
-func runBatchApply(rootContext cli.RootContext, filePath []string, recursiveFolder bool) {
-	handler := cli.NewBatchApplyHandler(rootContext)
+func runServerApply(rootContext cli.RootContext, filePath []string, recursiveFolder bool) {
+	handler := cli.NewServerApplyHandler(rootContext)
 
-	cmdCtx := cli.BatchApplyHandlerContext{
+	cmdCtx := cli.ServerApplyHandlerContext{
 		FilePaths:       filePath,
 		DryRun:          *dryRun,
 		PrintDiff:       *printDiff,
@@ -145,7 +145,7 @@ func runBatchApply(rootContext cli.RootContext, filePath []string, recursiveFold
 			fmt.Fprintln(os.Stderr, "Operation cancelled")
 			os.Exit(130) // Standard exit code for SIGINT
 		}
-		fmt.Fprintf(os.Stderr, "Error during batch apply: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error during server apply: %s\n", err)
 		os.Exit(1)
 	}
 
