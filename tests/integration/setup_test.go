@@ -228,9 +228,6 @@ func testDataFilePath(t *testing.T, fileName string) string {
 	return fmt.Sprintf("%s/testdata/resources/%s", workDir, fileName)
 }
 
-// createAdminToken creates an admin API token using user/password authentication.
-// Returns the token value and token name for cleanup.
-// Note: The CLI only outputs the raw token string, so we use the token name for deletion lookup.
 func createAdminToken(t *testing.T, name string) (token string, tokenName string) {
 	stdout, stderr, err := runConsoleCommand("token", "create", "admin", name)
 	assert.NoErrorf(t, err, "Failed to create admin token: %s", stderr)
@@ -242,7 +239,6 @@ func createAdminToken(t *testing.T, name string) (token string, tokenName string
 	return token, name
 }
 
-// deleteTokenByName deletes an API token by looking up its ID from the token name.
 func deleteTokenByName(tokenName string) {
 	// First, list admin tokens to find the ID
 	stdout, stderr, err := runConsoleCommand("token", "list", "admin")
@@ -273,8 +269,6 @@ func deleteTokenByName(tokenName string) {
 	debugLogger.Printf("Token not found for deletion: %s\n", tokenName)
 }
 
-// runCommandWithToken runs a CLI command using API token authentication instead of user/password.
-// It temporarily sets CDK_API_KEY and clears CDK_USER/CDK_PASSWORD, then restores them after.
 func runCommandWithToken(token string, args ...string) (string, string, error) {
 	// Save original env
 	originalApiKey := os.Getenv("CDK_API_KEY")

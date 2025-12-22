@@ -10,10 +10,10 @@ const (
 
 // HTTP timeouts
 const (
-	DefaultTimeout       = 30 * time.Second
-	CancelTimeout        = 5 * time.Second
-	InitialPollInterval  = 100 * time.Millisecond
-	MaxPollInterval      = 2 * time.Second
+	DefaultTimeout      = 30 * time.Second
+	CancelTimeout       = 5 * time.Second
+	InitialPollInterval = 100 * time.Millisecond
+	MaxPollInterval     = 2 * time.Second
 )
 
 // Valid strategy values - must match Scala ApplyStrategy enum

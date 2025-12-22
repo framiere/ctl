@@ -11,7 +11,7 @@ import (
 )
 
 var templateCmd = &cobra.Command{
-	Use:   "template [kind]",
+	Use:   "template",
 	Short: "Get a yaml example for a given kind",
 	Long: `Get a yaml example for a given kind.
 
@@ -40,44 +40,30 @@ func initTemplate(rootContext cli.RootContext) {
 	var cluster *string
 
 	file = templateCmd.PersistentFlags().StringP("output", "o", "", "Write example to file")
-	edit = templateCmd.PersistentFlags().BoolP("edit", "e", false, "Edit the YAML file post-creation; this works only with --output. It will use the EDITOR environment variable or nano if not set.")
+	edit = templateCmd.PersistentFlags().BoolP("edit", "e", false, "Edit the YAML file post-creation; this works only with --output. It will the EDITOR environment variable or nano if not set.")
 	apply = templateCmd.PersistentFlags().BoolP("apply", "a", false, "Apply the YAML file post-editing; this works only with --edit.")
 	live = templateCmd.PersistentFlags().Bool("live", false, "Fetch template from server instead of using embedded defaults")
 	cluster = templateCmd.PersistentFlags().String("cluster", "", "Specify cluster for template (only used with --live)")
 
-	templateCmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if edit != nil && *edit && (file == nil || *file == "") {
-			fmt.Fprintln(os.Stderr, "Cannot use --edit without --output")
-			os.Exit(10)
-		}
-		if apply != nil && *apply && (edit == nil || !*edit) {
-			fmt.Fprintln(os.Stderr, "Cannot use --apply without --edit")
-			os.Exit(11)
-		}
-		if cluster != nil && *cluster != "" && (live == nil || !*live) {
-			fmt.Fprintln(os.Stderr, "Cannot use --cluster without --live")
-			os.Exit(12)
-		}
-	}
-
 	templateCmd.Run = func(cmd *cobra.Command, args []string) {
+		// --live without kind: list available kinds from server
 		if *live {
-			runTemplateLive(rootContext, args, file, edit, apply, cluster)
+			runTemplateLive(rootContext, nil, file, edit, apply, cluster)
 		} else {
-			runTemplateEmbedded(rootContext, args, file, edit, apply)
+			// Original behavior: show help
+			_ = cmd.Help()
+			os.Exit(1)
 		}
 	}
 
-	// Add all kinds as subcommands for backward compatibility
+	// Add all kinds to the 'template' command
 	for name, kind := range rootContext.Catalog.Kind {
-		kindName := name // capture for closure
-		kindRef := kind  // capture for closure
 		kindCmd := &cobra.Command{
-			Use:     kindName,
-			Short:   "Get a yaml example for resource of kind " + kindName,
+			Use:     name,
+			Short:   "Get a yaml example for resource of kind " + name,
 			Args:    cobra.NoArgs,
-			Long:    `Get a yaml example for resource of kind ` + kindName,
-			Aliases: buildAlias(kindName),
+			Long:    `If name not provided it will list all resource`,
+			Aliases: buildAlias(name),
 			PreRun: func(cmd *cobra.Command, args []string) {
 				if edit != nil && *edit && (file == nil || *file == "") {
 					fmt.Fprintln(os.Stderr, "Cannot use --edit without --output")
@@ -93,15 +79,58 @@ func initTemplate(rootContext cli.RootContext) {
 				}
 			},
 			Run: func(cmd *cobra.Command, args []string) {
+				// --live: fetch from server
 				if *live {
-					runTemplateLive(rootContext, []string{kindName}, file, edit, apply, cluster)
+					runTemplateLive(rootContext, []string{name}, file, edit, apply, cluster)
+					return
+				}
+
+				// Original behavior: use embedded template
+				example := kind.GetLatestKindVersion().GetApplyExample()
+				if example == "" {
+					fmt.Fprintf(os.Stderr, "No template for kind %s\n", name)
+					os.Exit(1)
 				} else {
-					example := kindRef.GetLatestKindVersion().GetApplyExample()
-					if example == "" {
-						fmt.Fprintf(os.Stderr, "No template for kind %s\n", kindName)
-						os.Exit(1)
+					if file == nil || *file == "" {
+						fmt.Println("---")
+						fmt.Println(kind.GetLatestKindVersion().GetApplyExample())
+					} else {
+						_, err := os.Stat(*file)
+						if err == nil {
+							fmt.Fprintf(os.Stderr, "File %s already exists. You can use conduktor template %s >> %s to append to existing file\n", *file, name, *file)
+							os.Exit(2)
+						}
+						f, err := os.Create(*file)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Error creating file %s: %s\n", *file, err)
+							os.Exit(3)
+						}
+						defer f.Close()
+						w := bufio.NewWriter(f)
+						if apply != nil && *apply {
+							_, err = w.WriteString(AutoApplyWarningMessage)
+							if err != nil {
+								fmt.Fprintf(os.Stderr, "Error writing to file %s: %s\n", *file, err)
+								os.Exit(4)
+							}
+						}
+						_, err = w.WriteString("---\n")
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Error writing to file %s: %s\n", *file, err)
+							os.Exit(4)
+						}
+						_, err = w.WriteString(kind.GetLatestKindVersion().GetApplyExample())
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Error writing to file %s: %s\n", *file, err)
+							os.Exit(4)
+						}
+						err = w.Flush()
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Error writing to file %s: %s\n", *file, err)
+							os.Exit(5)
+						}
+						editAndApply(rootContext, edit, file, apply)
 					}
-					writeTemplate(rootContext, kindName, example, file, edit, apply)
 				}
 			},
 		}
@@ -109,39 +138,10 @@ func initTemplate(rootContext cli.RootContext) {
 	}
 }
 
-func runTemplateEmbedded(rootContext cli.RootContext, args []string, file *string, edit *bool, apply *bool) {
-	// If no kind specified, list all available kinds
-	if len(args) == 0 {
-		fmt.Println("Available Kinds (use 'template <kind>' or 'template <kind> --live'):")
-		for name := range rootContext.Catalog.Kind {
-			fmt.Println("  " + name)
-		}
-		return
-	}
-
-	// Get template for specific kind
-	kindName := args[0]
-	kind, ok := rootContext.Catalog.Kind[kindName]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Unknown kind: %s\n", kindName)
-		os.Exit(1)
-	}
-
-	example := kind.GetLatestKindVersion().GetApplyExample()
-	if example == "" {
-		fmt.Fprintf(os.Stderr, "No template for kind %s\n", kindName)
-		os.Exit(1)
-	}
-
-	writeTemplate(rootContext, kindName, example, file, edit, apply)
-}
-
 func runTemplateLive(rootContext cli.RootContext, args []string, file *string, edit *bool, apply *bool, cluster *string) {
 	apiClient := rootContext.ConsoleAPIClient()
 	httpClient := apiClient.Resty()
 	baseURL := apiClient.BaseURL()
-	// baseURL ends with /api, but template is at /public/v1/resources/template
-	// So we need to strip /api and use /public/v1/resources/template
 	templateURL := strings.TrimSuffix(baseURL, "/api") + "/public/v1/resources/template"
 
 	// If no kind specified, list all available kinds
@@ -196,17 +196,15 @@ func runTemplateLive(rootContext cli.RootContext, args []string, file *string, e
 	}
 
 	example := resp.String()
-	writeTemplate(rootContext, kind, example, file, edit, apply)
-}
 
-func writeTemplate(rootContext cli.RootContext, kindName string, example string, file *string, edit *bool, apply *bool) {
+	// Output template (same logic as embedded)
 	if file == nil || *file == "" {
 		fmt.Println("---")
 		fmt.Println(example)
 	} else {
 		_, err := os.Stat(*file)
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "File %s already exists. You can use conduktor template %s >> %s to append to existing file\n", *file, kindName, *file)
+			fmt.Fprintf(os.Stderr, "File %s already exists. You can use conduktor template %s >> %s to append to existing file\n", *file, kind, *file)
 			os.Exit(2)
 		}
 		f, err := os.Create(*file)
